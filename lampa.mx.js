@@ -5,11 +5,11 @@
     //  PLUGIN MANIFEST (registra no Lampa.Manifest.plugins)
     // ============================================================
     var plugin = {
+        component: 'mx_stremio',
         name: 'MX Stremio',
         version: '1.1.0',
         description: 'Stremio Addons + TorBox Debrid para Lampa Next Gen',
         type: 'plugin',
-        component: 'stremio_catalog',
         icon: '<svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M12,2L2,7l10 5 10-5-10-5zM2,17l10 5 10-5M2,12l10 5 10-5"/></svg>'
     };
 
@@ -33,11 +33,11 @@
     //  CONFIG
     // ============================================================
     const STORAGE_KEY = 'lampa_mx_stremio_addons';
-    const STREAM_TIMEOUT = 8000;        // timeout fetch em ms
-    const MAX_POLLS = 12;               // tentativas de polling TorBox
-    const INITIAL_POLL_DELAY = 5000;    // delay inicial
-    const POLL_DELAY = 2000;            // delay entre polls
-    const CHUNK_SIZE = 3;               // torrents em paralelo
+    const STREAM_TIMEOUT = 8000;
+    const MAX_POLLS = 12;
+    const INITIAL_POLL_DELAY = 5000;
+    const POLL_DELAY = 2000;
+    const CHUNK_SIZE = 3;
 
     // ============================================================
     //  STREMIO ADDON MANAGER
@@ -68,7 +68,8 @@
             return url + 'manifest.json';
         }
 
-        async function fetchWithTimeout(url, opts = {}) {
+        async function fetchWithTimeout(url, opts) {
+            opts = opts || {};
             const controller = new AbortController();
             const t = setTimeout(() => controller.abort(), STREAM_TIMEOUT);
             try {
@@ -108,9 +109,7 @@
             saveInstalledAddons(getInstalledAddons().filter(a => a.id !== id));
         }
 
-        function listAddons() {
-            return getInstalledAddons();
-        }
+        function listAddons() { return getInstalledAddons(); }
 
         function supportsResource(addon, resource, type) {
             const hasRes = addon.resources.some(r => {
@@ -186,7 +185,6 @@
 
         const magnet = stream.url;
 
-        // 1. Adicionar magnet
         const addResponse = await fetch('https://api.torbox.app/v2/api/torrents/createtorrent', {
             method: 'POST',
             headers: {
@@ -204,7 +202,6 @@
         const torrentId = addData.data && addData.data.torrent_id;
         if (!torrentId) throw new Error('TorBox sem torrent_id');
 
-        // 2. Polling com filtro por ID
         let downloadUrl = null;
         let retries = 0;
         let delay = INITIAL_POLL_DELAY;
@@ -305,7 +302,7 @@
     }
 
     // ============================================================
-    //  STREAM SELECTOR (modal pra escolher stream)
+    //  STREAM SELECTOR
     // ============================================================
     function showStreamSelector(streams, item, onPick) {
         if (!streams || streams.length === 0) {
@@ -501,7 +498,7 @@
     }
 
     // ============================================================
-    //  MANAGER COMPONENT (lista addons + instalar/remover)
+    //  MANAGER COMPONENT
     // ============================================================
     function StremioManagerComponent(object) {
         object = object || {};
@@ -697,7 +694,7 @@
     }
 
     // ============================================================
-    //  FIRST-RUN CHECK (aviso amigável se TorBox não tá configurado)
+    //  FIRST-RUN CHECK
     // ============================================================
     function firstRunCheck() {
         const seen = Lampa.Storage.get('mx_first_run_done', false);
@@ -718,6 +715,10 @@
     //  BOOT
     // ============================================================
     function start() {
+        // Idempotência: evita rodar 2x
+        if (window['plugin_' + plugin.component + '_ready']) return;
+        window['plugin_' + plugin.component + '_ready'] = true;
+
         Lampa.Component.add('stremio_catalog', StremioCatalogComponent);
         Lampa.Component.add('stremio_manager', StremioManagerComponent);
         registerSettings();

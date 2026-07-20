@@ -6,7 +6,7 @@
     const DEBRID_PROVIDER = 'torbox';      // 'torbox' ou 'real-debrid'
     const DEBRID_API_KEY = 'SUA_API_KEY_AQUI'; // Insira sua chave do TorBox ou Real-Debrid
     
-    // Addon padrão para exibir no catálogo inicial (pode ser alterado no app)
+    // Addon padrão para exibir no catálogo inicial
     const DEFAULT_ADDON_URL = 'https://torrentio.strem.fun';
     const DEFAULT_CATALOG_ID = 'top';
     const DEFAULT_CATALOG_TYPE = 'movie';
@@ -116,7 +116,6 @@
 
         this.fetchCatalog = async function () {
             try {
-                // Usa o primeiro addon instalado que tenha catálogo de filme
                 const addon = StremioAddonManager.listAddons().find(a => a.catalogs && a.catalogs.some(c => c.type === DEFAULT_CATALOG_TYPE));
                 if (!addon) throw new Error('Nenhum addon com catálogo instalado');
 
@@ -232,7 +231,7 @@
             }
         };
 
-        // ========== REAL-DEBRID (SOB DEMANDA) ==========
+        // ========== REAL-DEBRID ==========
         this.getSingleDebridLinkRD = async function (magnetUrl) {
             try {
                 const addRes = await fetch('https://api.real-debrid.com/rest/1.0/torrents/addMagnet', {
@@ -258,7 +257,7 @@
             } catch (e) { console.warn(e); return null; }
         };
 
-        // ========== TORBOX V2 (SOB DEMANDA) ==========
+        // ========== TORBOX V2 ==========
         this.getSingleDebridLinkTorBox = async function (magnetUrl) {
             try {
                 const addRes = await fetch('https://api.torbox.app/v2/api/torrents/createtorrent', {
@@ -269,7 +268,7 @@
                 if (!torrentId) throw new Error("TorBox: Sem ID");
 
                 for (let i = 0; i < 15; i++) {
-                    await new Promise(r => setTimeout(r, i === 0 ? 5000 : 2000)); // Backoff inicial de 5s
+                    await new Promise(r => setTimeout(r, i === 0 ? 5000 : 2000));
                     const infoRes = await fetch(`https://api.torbox.app/v2/api/torrents/mylist?torrent_id=${torrentId}`, { headers: { 'Authorization': `Bearer ${DEBRID_API_KEY}` } });
                     const info = await infoRes.json();
                     
@@ -278,8 +277,11 @@
                         let bestFile = files.reduce((max, f) => ((f.name.endsWith('.mkv') || f.name.endsWith('.mp4')) && f.size > (max?.size || 0)) ? f : max, null);
                         if (!bestFile) bestFile = files[0];
                         
-                        // Retorna link direto usando Bearer Token (V2)
-                        return `https://api.torbox.app/v2/api/torrents/requestdl?torrent_id=${torrentId}&file_id=${bestFile.id}`;
+                        const dlRes = await fetch(`https://api.torbox.app/v2/api/torrents/requestdl?torrent_id=${torrentId}&file_id=${bestFile.id}`, { 
+                            headers: { 'Authorization': `Bearer ${DEBRID_API_KEY}` } 
+                        });
+                        const dlData = await dlRes.json();
+                        if (dlData.success && dlData.data) return dlData.data;
                     }
                 }
                 return null;
@@ -336,10 +338,10 @@
                         <div style="font-size: 16px; color: #fff;">${addon.name}</div>
                         <div style="font-size: 12px; color: #888; margin-top: 4px;">Versão: ${addon.version}</div>
                     </div>
-                    <div style="color: #ff4b4b; font-size: 14px; padding: 5px 10px; border: 1px solid #ff4b4b; border-radius: 4px;">Remover</div>
+                    <div class="remove-btn" style="color: #ff4b4b; font-size: 14px; padding: 5px 10px; border: 1px solid #ff4b4b; border-radius: 4px;">Remover</div>
                 `;
 
-                item.querySelector('div:last-child').addEventListener('click', (e) => {
+                item.querySelector('.remove-btn').addEventListener('click', (e) => {
                     e.stopPropagation();
                     Lampa.Controller.toogleContent(false);
                     Lampa.Select.show({
@@ -358,18 +360,17 @@
             this.html.appendChild(list);
         };
 
-        this.render = function () { return this.html; }; // Sobrescrito acima, mas mantido por padrão
         this.destroy = function () { this.html = null; };
         this.initialize();
     }
 
-    // ========== REGISTRO DE COMPONENTES NO LAMPA ==========
-    Lampa.Movies.stremio_catalog = function (object) { return new StremioCatalogComponent(object); };
-    Lampa.Movies.stremio_manager = function (object) { return new StremioManagerComponent(object); };
+    // ========== REGISTRO OFICIAL NO LAMPA ==========
+    Lampa.Component.add('stremio_catalog', StremioCatalogComponent);
+    Lampa.Component.add('stremio_manager', StremioManagerComponent);
 
     // ========== ADIÇÃO AO MENU PRINCIPAL ==========
-    Lampa.Listener.follow('app, menu', function (e) {
-        if (e.type == 'ready' && e.section == 'menu') {
+    Lampa.Listener.follow('menu', function (e) {
+        if (e.type == 'start') {
             const stremio_item = {
                 title: 'Stremio',
                 icon: '<svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,16.5A4.5,4.5 0 0,1 7.5,12A4.5,4.5 0 0,1 12,7.5A4.5,4.5 0 0,1 16.5,12A4.5,4.5 0 0,1 12,16.5Z"/></svg>',
@@ -390,8 +391,8 @@
                 }
             };
 
-            if (!e.data.find(it => it.page === 'stremio_catalog')) e.data.push(stremio_item);
-            if (!e.data.find(it => it.page === 'stremio_manager')) e.data.push(manager_item);
+            if (!e.body.find(it => it.page === 'stremio_catalog')) e.body.push(stremio_item);
+            if (!e.body.find(it => it.page === 'stremio_manager')) e.body.push(manager_item);
         }
     });
 

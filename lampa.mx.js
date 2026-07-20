@@ -2,6 +2,34 @@
     'use strict';
 
     // ============================================================
+    //  PLUGIN MANIFEST (registra no Lampa.Manifest.plugins)
+    // ============================================================
+    var plugin = {
+        name: 'MX Stremio',
+        version: '1.1.0',
+        description: 'Stremio Addons + TorBox Debrid para Lampa Next Gen',
+        type: 'plugin',
+        component: 'stremio_catalog',
+        icon: '<svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M12,2L2,7l10 5 10-5-10-5zM2,17l10 5 10-5M2,12l10 5 10-5"/></svg>'
+    };
+
+    // Auto-registra no Lampa assim que o objeto Lampa existir
+    function registerPluginManifest() {
+        if (typeof Lampa === 'undefined') return false;
+        Lampa.Manifest = Lampa.Manifest || {};
+        Lampa.Manifest.plugins = Lampa.Manifest.plugins || {};
+        Lampa.Manifest.plugins[plugin.name] = plugin;
+        return true;
+    }
+
+    // Tenta registrar já; se Lampa não existir, tenta no 'app' ready
+    if (!registerPluginManifest()) {
+        var _readyCheck = setInterval(function () {
+            if (registerPluginManifest()) clearInterval(_readyCheck);
+        }, 50);
+    }
+
+    // ============================================================
     //  CONFIG
     // ============================================================
     const STORAGE_KEY = 'lampa_mx_stremio_addons';

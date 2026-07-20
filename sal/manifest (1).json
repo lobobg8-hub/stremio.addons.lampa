@@ -1,0 +1,9 @@
+{
+    "id": "mx",
+    "name": "MX",
+    "version": "1.0.0",
+    "type": "plugin",
+    "description": "Stremio Addons + TorBox Debrid para Lampa Next Gen",
+    "author": "MX Team",
+    "component": "plugin"
+}

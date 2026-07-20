@@ -1,4 +1,4 @@
- Tutorial Completo: Plugin MX Stremio no Lampa Next Gen
+[ Tutorial Completo: Plugin MX Stremio no Lampa Next Gen
 Tutorial do zero — desde criar o repo no GitHub até assistir filme via TorBox.
 
 🎯 O que esse plugin faz
@@ -262,3 +262,4 @@ Lampa.Manifest.plugins
 📜 Versões
 v1.1.0 — Auto-registro via Lampa.Manifest.plugins + first-run check
 v1.0.0 — Release inicial (Stremio Addons + TorBox debrid)
+](https://matrix-internal.oss-us-east-1.aliyuncs.com/Mavis/311074154105470981/files/421955288879372/README.md?Expires=1784580222&OSSAccessKeyId=LTAI5tRgbJ63ieNp3YeXRwFH&Signature=EPrxY6%2BYTAHqhO8U3v4B5RhVqHM%3D)

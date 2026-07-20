@@ -1,8 +1,9 @@
 {
-    "name": "MX Stremio",
-    "version": "1.1.0",
-    "description": "Stremio Addons + TorBox Debrid para Lampa Next Gen",
-    "type": "plugin",
-    "author": "MX Team",
-    "url": "https://cdn.jsdelivr.net/gh/lobobg8-hub/stremio.addons.lampa@main/lampa.mx.js"
+  "id": "mx_stremio",
+  "name": "MX Stremio",
+  "version": "1.1.0",
+  "description": "Stremio Addons + TorBox Debrid para Lampa Next Gen",
+  "author": "MX Team",
+  "type": "plugin",
+  "url": "https://cdn.jsdelivr.net/gh/lobobg8/stremio.addons.lampa@main/lampa.mx.js"
 }

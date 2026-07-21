@@ -1,16 +1,3 @@
-Isso aconteceu porque o código original que você usou tinha uma falha na forma como ele se registrava no Lampa. Ele usava um método chamado `Lampa.Movies` (que não existe nativamente para criar componentes) e usava um listener incorreto para o menu.
-
-Eu reescrevi a parte final do código para usar a API oficial do Lampa (`Lampa.Component.add` e o listener `menu` correto).
-
-### O que você deve fazer:
-1. Vá no seu GitHub, clique no arquivo `lampa.mx.js` e depois no lápis (✏️ Editar).
-2. Apague tudo e cole o código **completamente corrigido** abaixo.
-3. Clique em **Commit changes**.
-4. No Lampa, vá nas configurações do plugin e force uma atualização (ou desinstale e instale novamente usando o link com `?v=2` no final).
-
-Aqui está o código 100% corrigido:
-
-```javascript
 (function () {
     'use strict';
 
@@ -19,7 +6,7 @@ Aqui está o código 100% corrigido:
     const DEBRID_PROVIDER = 'torbox';      // 'torbox' ou 'real-debrid'
     const DEBRID_API_KEY = 'SUA_API_KEY_AQUI'; // Insira sua chave do TorBox ou Real-Debrid
     
-    // Addon padrão para exibir no catálogo inicial
+    // Addon padrão para exibir no catálogo inicial (pode ser alterado no app)
     const DEFAULT_ADDON_URL = 'https://torrentio.strem.fun';
     const DEFAULT_CATALOG_ID = 'top';
     const DEFAULT_CATALOG_TYPE = 'movie';
@@ -129,6 +116,7 @@ Aqui está o código 100% corrigido:
 
         this.fetchCatalog = async function () {
             try {
+                // Usa o primeiro addon instalado que tenha catálogo de filme
                 const addon = StremioAddonManager.listAddons().find(a => a.catalogs && a.catalogs.some(c => c.type === DEFAULT_CATALOG_TYPE));
                 if (!addon) throw new Error('Nenhum addon com catálogo instalado');
 
@@ -244,7 +232,7 @@ Aqui está o código 100% corrigido:
             }
         };
 
-        // ========== REAL-DEBRID ==========
+        // ========== REAL-DEBRID (SOB DEMANDA) ==========
         this.getSingleDebridLinkRD = async function (magnetUrl) {
             try {
                 const addRes = await fetch('https://api.real-debrid.com/rest/1.0/torrents/addMagnet', {
@@ -270,7 +258,7 @@ Aqui está o código 100% corrigido:
             } catch (e) { console.warn(e); return null; }
         };
 
-        // ========== TORBOX V2 ==========
+        // ========== TORBOX V2 (SOB DEMANDA) ==========
         this.getSingleDebridLinkTorBox = async function (magnetUrl) {
             try {
                 const addRes = await fetch('https://api.torbox.app/v2/api/torrents/createtorrent', {
@@ -281,7 +269,7 @@ Aqui está o código 100% corrigido:
                 if (!torrentId) throw new Error("TorBox: Sem ID");
 
                 for (let i = 0; i < 15; i++) {
-                    await new Promise(r => setTimeout(r, i === 0 ? 5000 : 2000));
+                    await new Promise(r => setTimeout(r, i === 0 ? 5000 : 2000)); 
                     const infoRes = await fetch(`https://api.torbox.app/v2/api/torrents/mylist?torrent_id=${torrentId}`, { headers: { 'Authorization': `Bearer ${DEBRID_API_KEY}` } });
                     const info = await infoRes.json();
                     
@@ -290,11 +278,14 @@ Aqui está o código 100% corrigido:
                         let bestFile = files.reduce((max, f) => ((f.name.endsWith('.mkv') || f.name.endsWith('.mp4')) && f.size > (max?.size || 0)) ? f : max, null);
                         if (!bestFile) bestFile = files[0];
                         
+                        // CORREÇÃO: Buscar o link de download real fornecido pelo TorBox
                         const dlRes = await fetch(`https://api.torbox.app/v2/api/torrents/requestdl?torrent_id=${torrentId}&file_id=${bestFile.id}`, { 
                             headers: { 'Authorization': `Bearer ${DEBRID_API_KEY}` } 
                         });
                         const dlData = await dlRes.json();
-                        if (dlData.success && dlData.data) return dlData.data;
+                        if (dlData.success && dlData.data) {
+                            return dlData.data; 
+                        }
                     }
                 }
                 return null;
@@ -377,17 +368,17 @@ Aqui está o código 100% corrigido:
         this.initialize();
     }
 
-    // ========== REGISTRO OFICIAL NO LAMPA ==========
-    Lampa.Component.add('stremio_catalog', StremioCatalogComponent);
-    Lampa.Component.add('stremio_manager', StremioManagerComponent);
+    // ========== REGISTRO DE COMPONENTES NO LAMPA ==========
+    // Correção: Usando Lampa.Component.add para garantir compatibilidade total
+    Lampa.Component.add('stremio_catalog', function(object){ return new StremioCatalogComponent(object); });
+    Lampa.Component.add('stremio_manager', function(object){ return new StremioManagerComponent(object); });
 
     // ========== ADIÇÃO AO MENU PRINCIPAL ==========
-    Lampa.Listener.follow('menu', function (e) {
-        if (e.type == 'start') {
+    Lampa.Listener.follow('app, menu', function (e) {
+        if (e.type == 'ready' && e.section == 'menu' && e.data) {
             const stremio_item = {
                 title: 'Stremio',
                 icon: '<svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,16.5A4.5,4.5 0 0,1 7.5,12A4.5,4.5 0 0,1 12,7.5A4.5,4.5 0 0,1 16.5,12A4.5,4.5 0 0,1 12,16.5Z"/></svg>',
-                page: 'stremio_catalog',
                 component: 'stremio_catalog',
                 onClick: function () {
                     Lampa.Activity.push({ url: '', title: 'Stremio', component: 'stremio_catalog', page: 1 });
@@ -397,17 +388,15 @@ Aqui está o código 100% corrigido:
             const manager_item = {
                 title: 'Gerenciar Addons',
                 icon: '<svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg>',
-                page: 'stremio_manager',
                 component: 'stremio_manager',
                 onClick: function () {
                     Lampa.Activity.push({ url: '', title: 'Gerenciar Addons', component: 'stremio_manager', page: 1 });
                 }
             };
 
-            if (!e.body.find(it => it.page === 'stremio_catalog')) e.body.push(stremio_item);
-            if (!e.body.find(it => it.page === 'stremio_manager')) e.body.push(manager_item);
+            if (!e.data.find(it => it.component === 'stremio_catalog')) e.data.push(stremio_item);
+            if (!e.data.find(it => it.component === 'stremio_manager')) e.data.push(manager_item);
         }
     });
 
 })();
-```

@@ -6,7 +6,7 @@
     const DEBRID_PROVIDER = 'torbox';      // 'torbox' ou 'real-debrid'
     const DEBRID_API_KEY = 'SUA_API_KEY_AQUI'; // Insira sua chave do TorBox ou Real-Debrid
     
-    // Addon padrão para exibir no catálogo inicial (pode ser alterado no app)
+    // Addon padrão para exibir no catálogo inicial
     const DEFAULT_ADDON_URL = 'https://torrentio.strem.fun';
     const DEFAULT_CATALOG_ID = 'top';
     const DEFAULT_CATALOG_TYPE = 'movie';
@@ -103,20 +103,24 @@
 
     // ========== COMPONENTE DO CATÁLOGO ==========
     function StremioCatalogComponent(object) {
-        this.initialize = function () {
-            this.html = document.createElement('div');
-            this.html.style.padding = '20px';
-            this.loading();
-            this.fetchCatalog();
+        let html = document.createElement('div');
+        html.style.padding = '20px';
+
+        this.create = function() {
+            return html;
         };
 
-        this.loading = function () {
-            this.html.innerHTML = '<div class="broadcast__scan" style="text-align:center; padding: 50px;"><div></div><div>Carregando Catálogo...</div></div>';
+        this.start = function() {
+            loading();
+            fetchCatalog();
         };
 
-        this.fetchCatalog = async function () {
+        function loading() {
+            html.innerHTML = '<div class="broadcast__scan" style="text-align:center; padding: 50px;"><div></div><div>Carregando Catálogo...</div></div>';
+        }
+
+        async function fetchCatalog() {
             try {
-                // Usa o primeiro addon instalado que tenha catálogo de filme
                 const addon = StremioAddonManager.listAddons().find(a => a.catalogs && a.catalogs.some(c => c.type === DEFAULT_CATALOG_TYPE));
                 if (!addon) throw new Error('Nenhum addon com catálogo instalado');
 
@@ -124,16 +128,16 @@
                 const res = await fetch(url);
                 if (!res.ok) throw new Error('Falha na rede');
                 const data = await res.json();
-                this.renderCatalog(data.metas || []);
+                renderCatalog(data.metas || []);
             } catch (error) {
-                this.html.innerHTML = `<div class="empty" style="text-align:center; padding: 50px;">Erro ao carregar catálogo.<br>${error.message}</div>`;
+                html.innerHTML = `<div class="empty" style="text-align:center; padding: 50px;">Erro ao carregar catálogo.<br>${error.message}</div>`;
             }
-        };
+        }
 
-        this.renderCatalog = function (items) {
-            this.html.innerHTML = '';
+        function renderCatalog(items) {
+            html.innerHTML = '';
             if (items.length === 0) {
-                this.html.innerHTML = '<div class="empty">Nenhum item encontrado</div>';
+                html.innerHTML = '<div class="empty">Nenhum item encontrado</div>';
                 return;
             }
 
@@ -143,11 +147,11 @@
             grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(160px, 1fr))';
             grid.style.gap = '20px';
 
-            items.forEach(item => grid.appendChild(this.createCard(item)));
-            this.html.appendChild(grid);
-        };
+            items.forEach(item => grid.appendChild(createCard(item)));
+            html.appendChild(grid);
+        }
 
-        this.createCard = function (item) {
+        function createCard(item) {
             const card = document.createElement('div');
             card.classList.add('card', 'card--category', 'selector');
             card.style.cursor = 'pointer';
@@ -172,17 +176,16 @@
             card.appendChild(title);
 
             card.addEventListener('click', async () => {
-                Lampa.Controller.toogleContent(false);
                 Lampa.Noty.show(`Buscando streams para: ${item.name}...`, { time: 2000 });
-                const streams = await this.fetchStreams(DEFAULT_CATALOG_TYPE, item.id);
-                if (streams.length > 0) this.showStreamSelection(streams, item);
+                const streams = await fetchStreams(DEFAULT_CATALOG_TYPE, item.id);
+                if (streams.length > 0) showStreamSelection(streams, item);
                 else Lampa.Noty.show('Nenhum stream disponível.', { time: 3000 });
             });
 
             return card;
-        };
+        }
 
-        this.fetchStreams = async function (type, id) {
+        async function fetchStreams(type, id) {
             if (streamCache.has(id)) return streamCache.get(id);
             const rawStreams = await StremioAddonManager.getStreams(type, id);
 
@@ -196,25 +199,25 @@
 
             streamCache.set(id, normalized);
             return normalized;
-        };
+        }
 
-        this.showStreamSelection = function (streams, item) {
+        function showStreamSelection(streams, item) {
             const items = streams.map(stream => ({ title: stream.title, stream }));
             Lampa.Select.show({
                 title: 'Escolha a Qualidade',
                 items: items,
-                onSelect: (sel) => this.playStream(sel.stream, item)
+                onSelect: (sel) => playStream(sel.stream, item)
             });
-        };
+        }
 
-        this.playStream = async function (stream, item) {
+        async function playStream(stream, item) {
             if (!stream || !stream.url) return Lampa.Noty.show('Stream inválido.', { time: 3000 });
             let finalUrl = stream.url;
 
             if (finalUrl.startsWith('magnet:') && USE_DEBRID && DEBRID_API_KEY && DEBRID_API_KEY !== 'SUA_API_KEY_AQUI') {
                 Lampa.Noty.show(`Convertendo no ${DEBRID_PROVIDER}...`, { time: 2000 });
-                if (DEBRID_PROVIDER === 'real-debrid') finalUrl = await this.getSingleDebridLinkRD(finalUrl);
-                else if (DEBRID_PROVIDER === 'torbox') finalUrl = await this.getSingleDebridLinkTorBox(finalUrl);
+                if (DEBRID_PROVIDER === 'real-debrid') finalUrl = await getSingleDebridLinkRD(finalUrl);
+                else if (DEBRID_PROVIDER === 'torbox') finalUrl = await getSingleDebridLinkTorBox(finalUrl);
 
                 if (!finalUrl) return Lampa.Noty.show(`Falha ao converter no ${DEBRID_PROVIDER}.`, { time: 3000 });
             }
@@ -230,10 +233,10 @@
             } else {
                 Lampa.Noty.show('Formato não suportado ou Debrid desativado.', { time: 3000 });
             }
-        };
+        }
 
-        // ========== REAL-DEBRID (SOB DEMANDA) ==========
-        this.getSingleDebridLinkRD = async function (magnetUrl) {
+        // ========== REAL-DEBRID ==========
+        async function getSingleDebridLinkRD(magnetUrl) {
             try {
                 const addRes = await fetch('https://api.real-debrid.com/rest/1.0/torrents/addMagnet', {
                     method: 'POST', headers: { 'Authorization': `Bearer ${DEBRID_API_KEY}`, 'Content-Type': 'application/x-www-form-urlencoded' }, body: `magnet=${encodeURIComponent(magnetUrl)}`
@@ -256,10 +259,10 @@
                 }
                 return null;
             } catch (e) { console.warn(e); return null; }
-        };
+        }
 
-        // ========== TORBOX V2 (SOB DEMANDA) ==========
-        this.getSingleDebridLinkTorBox = async function (magnetUrl) {
+        // ========== TORBOX ==========
+        async function getSingleDebridLinkTorBox(magnetUrl) {
             try {
                 const addRes = await fetch('https://api.torbox.app/v2/api/torrents/createtorrent', {
                     method: 'POST', headers: { 'Authorization': `Bearer ${DEBRID_API_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ magnet: magnetUrl })
@@ -278,7 +281,6 @@
                         let bestFile = files.reduce((max, f) => ((f.name.endsWith('.mkv') || f.name.endsWith('.mp4')) && f.size > (max?.size || 0)) ? f : max, null);
                         if (!bestFile) bestFile = files[0];
                         
-                        // CORREÇÃO: Buscar o link de download real fornecido pelo TorBox
                         const dlRes = await fetch(`https://api.torbox.app/v2/api/torrents/requestdl?torrent_id=${torrentId}&file_id=${bestFile.id}`, { 
                             headers: { 'Authorization': `Bearer ${DEBRID_API_KEY}` } 
                         });
@@ -290,23 +292,26 @@
                 }
                 return null;
             } catch (e) { console.warn('Erro TorBox:', e); return null; }
-        };
+        }
 
-        this.render = function () { return this.html; };
-        this.destroy = function () { this.html = null; };
-        this.initialize();
+        this.destroy = function () { html = null; };
     }
 
     // ========== TELA DE GERENCIAMENTO ==========
     function StremioManagerComponent(object) {
-        this.initialize = function () {
-            this.html = document.createElement('div');
-            this.html.style.padding = '20px';
-            this.render();
+        let html = document.createElement('div');
+        html.style.padding = '20px';
+
+        this.create = function() {
+            return html;
         };
 
-        this.render = function () {
-            this.html.innerHTML = '';
+        this.start = function() {
+            render();
+        };
+
+        function render() {
+            html.innerHTML = '';
             const addBtn = document.createElement('div');
             addBtn.classList.add('menu-item', 'selector');
             addBtn.style.cssText = 'padding: 15px; background: #2a2a2a; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; cursor: pointer;';
@@ -319,15 +324,15 @@
                     try {
                         const addon = await StremioAddonManager.installAddon(value);
                         Lampa.Noty.show(`Addon "${addon.name}" instalado!`);
-                        this.render();
+                        render();
                     } catch (e) { Lampa.Noty.show('Erro: ' + e.message); }
                 });
             });
-            this.html.appendChild(addBtn);
+            html.appendChild(addBtn);
 
             const addons = StremioAddonManager.listAddons();
             if (addons.length === 0) {
-                this.html.innerHTML += '<div style="text-align: center; color: #aaa; margin-top: 50px;">Nenhum addon instalado.</div>';
+                html.innerHTML += '<div style="text-align: center; color: #aaa; margin-top: 50px;">Nenhum addon instalado.</div>';
                 return;
             }
 
@@ -347,29 +352,26 @@
 
                 item.querySelector('.remove-btn').addEventListener('click', (e) => {
                     e.stopPropagation();
-                    Lampa.Controller.toogleContent(false);
                     Lampa.Select.show({
                         title: `Remover ${addon.name}?`,
                         items: [{ title: 'Confirmar Remoção', remove: true }],
                         onSelect: () => {
                             StremioAddonManager.removeAddon(addon.id);
                             Lampa.Noty.show('Addon removido.');
-                            this.render();
+                            render();
                         }
                     });
                 });
 
                 list.appendChild(item);
             });
-            this.html.appendChild(list);
-        };
+            html.appendChild(list);
+        }
 
-        this.destroy = function () { this.html = null; };
-        this.initialize();
+        this.destroy = function () { html = null; };
     }
 
     // ========== REGISTRO DE COMPONENTES NO LAMPA ==========
-    // Correção: Usando Lampa.Component.add para garantir compatibilidade total
     Lampa.Component.add('stremio_catalog', function(object){ return new StremioCatalogComponent(object); });
     Lampa.Component.add('stremio_manager', function(object){ return new StremioManagerComponent(object); });
 
@@ -379,23 +381,17 @@
             const stremio_item = {
                 title: 'Stremio',
                 icon: '<svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,16.5A4.5,4.5 0 0,1 7.5,12A4.5,4.5 0 0,1 12,7.5A4.5,4.5 0 0,1 16.5,12A4.5,4.5 0 0,1 12,16.5Z"/></svg>',
-                component: 'stremio_catalog',
-                onClick: function () {
-                    Lampa.Activity.push({ url: '', title: 'Stremio', component: 'stremio_catalog', page: 1 });
-                }
+                page: 'stremio_catalog'
             };
 
             const manager_item = {
                 title: 'Gerenciar Addons',
                 icon: '<svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg>',
-                component: 'stremio_manager',
-                onClick: function () {
-                    Lampa.Activity.push({ url: '', title: 'Gerenciar Addons', component: 'stremio_manager', page: 1 });
-                }
+                page: 'stremio_manager'
             };
 
-            if (!e.data.find(it => it.component === 'stremio_catalog')) e.data.push(stremio_item);
-            if (!e.data.find(it => it.component === 'stremio_manager')) e.data.push(manager_item);
+            if (!e.data.find(it => it.page === 'stremio_catalog')) e.data.push(stremio_item);
+            if (!e.data.find(it => it.page === 'stremio_manager')) e.data.push(manager_item);
         }
     });
 

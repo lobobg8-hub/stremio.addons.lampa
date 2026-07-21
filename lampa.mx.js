@@ -1,3 +1,16 @@
+Isso aconteceu porque o código original que você usou tinha uma falha na forma como ele se registrava no Lampa. Ele usava um método chamado `Lampa.Movies` (que não existe nativamente para criar componentes) e usava um listener incorreto para o menu.
+
+Eu reescrevi a parte final do código para usar a API oficial do Lampa (`Lampa.Component.add` e o listener `menu` correto).
+
+### O que você deve fazer:
+1. Vá no seu GitHub, clique no arquivo `lampa.mx.js` e depois no lápis (✏️ Editar).
+2. Apague tudo e cole o código **completamente corrigido** abaixo.
+3. Clique em **Commit changes**.
+4. No Lampa, vá nas configurações do plugin e force uma atualização (ou desinstale e instale novamente usando o link com `?v=2` no final).
+
+Aqui está o código 100% corrigido:
+
+```javascript
 (function () {
     'use strict';
 
@@ -397,3 +410,4 @@
     });
 
 })();
+```
